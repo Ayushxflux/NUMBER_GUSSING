@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NumberQuest — OOP Number Guessing Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── TOKENS ─────────────────────────────────────────────── */
+:root {
+  --bg:       #0a0a12;
+  --panel:    #111120;
+  --border:   #2a2a4a;
+  --accent:   #00f5c4;
+  --accent2:  #f500c4;
+  --accent3:  #f5c400;
+  --text:     #e0e0ff;
+  --muted:    #6060a0;
+  --easy:     #00f5c4;
+  --med:      #f5c400;
+  --hard:     #f5003c;
+  --glow:     0 0 18px rgba(0,245,196,.45);
+  --glow2:    0 0 18px rgba(245,0,196,.45);
+  --radius:   6px;
+  --font-px:  'Press Start 2P', monospace;
+  --font-ui:  'Rajdhani', sans-serif;
+}
+
+/* ── RESET & BASE ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.08) 2px,
+    rgba(0,0,0,.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Star field */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 10% 15%, #fff 0%, transparent 100%),
+    radial-gradient(1px 1px at 30% 70%, #aaf 0%, transparent 100%),
+    radial-gradient(1px 1px at 55% 25%, #fff 0%, transparent 100%),
+    radial-gradient(1px 1px at 75% 80%, #aaf 0%, transparent 100%),
+    radial-gradient(1px 1px at 90% 40%, #fff 0%, transparent 100%),
+    radial-gradient(1px 1px at 20% 90%, #fff 0%, transparent 100%),
+    radial-gradient(1px 1px at 65% 55%, #aaf 0%, transparent 100%),
+    radial-gradient(1px 1px at 48% 10%, #fff 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── NAVBAR ─────────────────────────────────────────────── */
+nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(10,10,18,.85);
+  backdrop-filter: blur(8px);
+  position: sticky; top: 0; z-index: 100;
+}
+.nav-logo {
+  font-family: var(--font-px);
+  font-size: .65rem;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  letter-spacing: 2px;
+}
+.nav-links { display: flex; gap: 2rem; }
+.nav-links a {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--muted);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: color .2s;
+}
+.nav-links a:hover { color: var(--accent); }
+
+/* ── HERO ───────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  text-align: center;
+  padding: 6rem 2rem 4rem;
+  z-index: 1;
+}
+.hero-tag {
+  font-family: var(--font-ui);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  text-shadow: var(--glow2);
+  margin-bottom: 1.5rem;
+}
+.hero h1 {
+  font-family: var(--font-px);
+  font-size: clamp(1.2rem, 4vw, 2.2rem);
+  line-height: 1.6;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(0,245,196,.6), 0 0 60px rgba(0,245,196,.2);
+  margin-bottom: 1.5rem;
+}
+.hero h1 span { color: var(--accent); }
+.hero p {
+  max-width: 600px;
+  margin: 0 auto 2.5rem;
+  font-size: 1.15rem;
+  line-height: 1.8;
+  color: var(--muted);
+  font-weight: 600;
+}
+.hero-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+/* ── BUTTONS ────────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-px);
+  font-size: .55rem;
+  padding: .9rem 1.8rem;
+  border: none; border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: 1px;
+  transition: transform .15s, box-shadow .2s;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+  box-shadow: var(--glow);
+}
+.btn-primary:hover { box-shadow: 0 0 30px rgba(0,245,196,.8); }
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: var(--glow);
+}
+.btn-outline:hover { background: rgba(0,245,196,.1); }
+
+/* ── SECTION WRAPPER ────────────────────────────────────── */
+section { position: relative; z-index: 1; padding: 5rem 2rem; }
+.section-title {
+  font-family: var(--font-px);
+  font-size: clamp(.7rem, 2vw, 1rem);
+  color: var(--accent);
+  text-shadow: var(--glow);
+  text-align: center;
+  margin-bottom: .8rem;
+}
+.section-sub {
+  text-align: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 3.5rem;
+  letter-spacing: 1px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* ── HOW TO PLAY ────────────────────────────────────────── */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.step {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  transition: border-color .3s, transform .3s;
+}
+.step:hover { border-color: var(--accent); transform: translateY(-4px); }
+.step-num {
+  font-family: var(--font-px);
+  font-size: 1.5rem;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  margin-bottom: 1rem;
+}
+.step h3 {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: .6rem;
+  color: #fff;
+}
+.step p { color: var(--muted); font-size: .95rem; line-height: 1.7; }
+
+/* ── DIFFICULTY CARDS ───────────────────────────────────── */
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.diff-card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  transition: transform .3s;
+}
+.diff-card:hover { transform: translateY(-5px); }
+.diff-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.diff-card.easy::before   { background: var(--easy);  box-shadow: 0 0 12px var(--easy); }
+.diff-card.medium::before { background: var(--med);   box-shadow: 0 0 12px var(--med); }
+.diff-card.hard::before   { background: var(--hard);  box-shadow: 0 0 12px var(--hard); }
+.diff-badge {
+  font-family: var(--font-px);
+  font-size: .5rem;
+  padding: .4rem .8rem;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 1.2rem;
+  letter-spacing: 1px;
+}
+.easy   .diff-badge { background: rgba(0,245,196,.15);  color: var(--easy); border: 1px solid var(--easy); }
+.medium .diff-badge { background: rgba(245,196,0,.15);  color: var(--med);  border: 1px solid var(--med); }
+.hard   .diff-badge { background: rgba(245,0,60,.15);   color: var(--hard); border: 1px solid var(--hard); }
+.diff-card h3 {
+  font-family: var(--font-ui);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: .8rem;
+  color: #fff;
+}
+.diff-stats { display: flex; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.stat {
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--muted);
+  background: rgba(255,255,255,.04);
+  padding: .3rem .7rem;
+  border-radius: 3px;
+}
+.diff-card p { color: var(--muted); line-height: 1.7; font-size: .95rem; }
+
+/* ── OOP SECTION ────────────────────────────────────────── */
+.oop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.oop-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  transition: border-color .3s, transform .3s;
+  position: relative;
+}
+.oop-card:hover { border-color: var(--accent2); transform: translateY(-4px); }
+.oop-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+.oop-card h3 {
+  font-family: var(--font-px);
+  font-size: .55rem;
+  color: var(--accent2);
+  text-shadow: var(--glow2);
+  margin-bottom: .8rem;
+  letter-spacing: 1px;
+}
+.oop-card p { color: var(--muted); font-size: .95rem; line-height: 1.75; }
+.oop-card code {
+  font-family: monospace;
+  font-size: .85rem;
+  color: var(--accent);
+  background: rgba(0,245,196,.08);
+  padding: .1rem .4rem;
+  border-radius: 3px;
+}
+
+/* ── CODE VIEWER ────────────────────────────────────────── */
+#code {
+  background: #07070f;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.code-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: .8rem 1.2rem;
+}
+.code-dots { display: flex; gap: .5rem; }
+.dot { width: 12px; height: 12px; border-radius: 50%; }
+.dot-r { background: #f5003c; }
+.dot-y { background: #f5c400; }
+.dot-g { background: #00f5c4; }
+.code-filename { font-family: monospace; font-size: .85rem; color: var(--muted); }
+.code-block {
+  background: #07070f;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 2rem;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: .82rem;
+  line-height: 1.8;
+  color: #c8d0e7;
+  max-height: 500px;
+  overflow-y: auto;
+}
+/* Syntax highlight via spans */
+.kw  { color: #c586c0; }   /* keywords */
+.cl  { color: #4ec9b0; }   /* class names */
+.fn  { color: #dcdcaa; }   /* functions */
+.cm  { color: #6a9955; }   /* comments */
+.str { color: #ce9178; }   /* strings */
+.num { color: #b5cea8; }   /* numbers */
+.op  { color: #d4d4d4; }   /* operators */
+
+/* ── GAME SECTION ────────────────────────────────────────── */
+#play {
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,245,196,.06) 0%, transparent 70%);
+}
+.game-box {
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.game-topbar {
+  background: #0d0d1e;
+  padding: 1.2rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.game-topbar-title {
+  font-family: var(--font-px);
+  font-size: .55rem;
+  color: var(--accent);
+  text-shadow: var(--glow);
+}
+#attempts-left {
+  font-family: var(--font-px);
+  font-size: .5rem;
+  color: var(--med);
+}
+.game-body { padding: 2rem; }
+
+/* Name & difficulty setup */
+.setup-group { margin-bottom: 1.5rem; }
+.setup-group label {
+  display: block;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .9rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .5rem;
+}
+.setup-group input,
+.setup-group select {
+  width: 100%;
+  background: #0a0a18;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  padding: .75rem 1rem;
+  outline: none;
+  transition: border-color .2s;
+}
+.setup-group input:focus,
+.setup-group select:focus { border-color: var(--accent); }
+.setup-group select option { background: #111; }
+
+/* Guess input area */
+.guess-row {
+  display: flex; gap: .75rem; margin-bottom: 1.2rem;
+}
+.guess-row input {
+  flex: 1;
+  background: #0a0a18;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-px);
+  font-size: 1rem;
+  padding: .75rem 1rem;
+  outline: none;
+  transition: border-color .2s;
+}
+.guess-row input:focus { border-color: var(--accent); box-shadow: var(--glow); }
+.btn-guess {
+  font-family: var(--font-px);
+  font-size: .5rem;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: var(--radius);
+  padding: .75rem 1.2rem;
+  cursor: pointer;
+  box-shadow: var(--glow);
+  transition: transform .15s, box-shadow .2s;
+  white-space: nowrap;
+}
+.btn-guess:hover { transform: translateY(-2px); box-shadow: 0 0 24px rgba(0,245,196,.9); }
+.btn-guess:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* Feedback message */
+#feedback {
+  min-height: 2.5rem;
+  font-family: var(--font-ui);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  border-radius: var(--radius);
+  padding: .6rem;
+  margin-bottom: 1rem;
+  transition: all .3s;
+}
+.fb-hot    { color: #ff6b35; background: rgba(255,107,53,.1); border: 1px solid rgba(255,107,53,.3); }
+.fb-warm   { color: var(--med); background: rgba(245,196,0,.1); border: 1px solid rgba(245,196,0,.3); }
+.fb-cold   { color: #5bc8fa; background: rgba(91,200,250,.1); border: 1px solid rgba(91,200,250,.3); }
+.fb-low    { color: var(--acc); background: rgba(0,245,196,.1); border: 1px solid rgba(0,245,196,.3); }
+.fb-high   { color: var(--acc); background: rgba(0,245,196,.1); border: 1px solid rgba(0,245,196,.3); }
+.fb-win    { color: #fff; background: rgba(0,245,196,.2); border: 1px solid var(--accent); text-shadow: var(--glow); }
+.fb-lose   { color: var(--hard); background: rgba(245,0,60,.1); border: 1px solid rgba(245,0,60,.3); }
+
+/* Attempt pips */
+.pips { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.pip {
+  width: 18px; height: 18px; border-radius: 3px;
+  background: var(--border);
+  transition: background .3s, box-shadow .3s;
+}
+.pip.used  { background: var(--accent2); }
+.pip.win   { background: var(--accent); box-shadow: var(--glow); }
+.pip.lose  { background: var(--hard); }
+
+/* Score */
+#score-display {
+  font-family: var(--font-px);
+  font-size: .6rem;
+  text-align: center;
+  color: var(--accent3);
+  text-shadow: 0 0 10px rgba(245,196,0,.6);
+  display: none;
+  margin-bottom: 1rem;
+}
+
+/* History log */
+.history-title {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: .5rem;
+}
+#history-log {
+  background: #07070f;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .75rem 1rem;
+  min-height: 60px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: .82rem;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.log-entry { display: flex; justify-content: space-between; }
+.log-entry.right { color: var(--accent); }
+.log-entry.left  { color: var(--accent2); }
+.log-entry.exact { color: var(--accent); font-weight: bold; }
+
+/* UML Section */
+#uml {
+  background: #07070f;
+  border-top: 1px solid var(--border);
+}
+.uml-container {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem;
+  overflow-x: auto;
+}
+.uml-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 600px;
+}
+/* Class box */
+.uml-class {
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  min-width: 200px;
+  text-align: center;
+  font-family: monospace;
+  font-size: .82rem;
+  background: #0d0d1e;
+  box-shadow: var(--glow);
+}
+.uml-class.derived { border-color: var(--accent2); box-shadow: var(--glow2); }
+.uml-class.util    { border-color: var(--med); box-shadow: 0 0 12px rgba(245,196,0,.4); }
+.uml-class-name {
+  background: rgba(0,245,196,.12);
+  padding: .5rem 1rem;
+  font-weight: bold;
+  color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+  font-family: var(--font-px);
+  font-size: .5rem;
+  letter-spacing: 1px;
+}
+.uml-class.derived .uml-class-name {
+  background: rgba(245,0,196,.12);
+  color: var(--accent2);
+  border-color: var(--accent2);
+}
+.uml-class.util .uml-class-name {
+  background: rgba(245,196,0,.12);
+  color: var(--med);
+  border-color: var(--med);
+}
+.uml-section {
+  padding: .4rem .8rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  line-height: 1.8;
+  text-align: left;
+}
+.uml-section:last-child { border-bottom: none; }
+
+/* Connector */
+.uml-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--accent);
+  font-size: .75rem;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  padding: .3rem 0;
+}
+.uml-connector .arrow { font-size: 1.2rem; }
+.uml-connector .label {
+  font-family: var(--font-px);
+  font-size: .4rem;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+.uml-derived-row {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.uml-derived-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── FOOTER ─────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 1;
+  text-align: center;
+  padding: 3rem 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+footer .footer-logo {
+  font-family: var(--font-px);
+  font-size: .5rem;
+  color: var(--accent);
+  text-shadow: var(--glow);
+  margin-bottom: 1rem;
+  letter-spacing: 2px;
+}
+footer p { font-size: .9rem; line-height: 2; }
+footer span { color: var(--accent); }
+
+/* ── ANIMATIONS ─────────────────────────────────────────── */
+@keyframes pulse-glow {
+  0%,100% { text-shadow: 0 0 20px rgba(0,245,196,.6); }
+  50%      { text-shadow: 0 0 40px rgba(0,245,196,1); }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-6px); }
+  40%     { transform: translateX(6px); }
+  60%     { transform: translateX(-4px); }
+  80%     { transform: translateX(4px); }
+}
+@keyframes pop {
+  0%   { transform: scale(.8); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-shake { animation: shake .4s ease; }
+.animate-pop   { animation: pop .4s ease forwards; }
+.pulse { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #07070f; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAVBAR ─────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">NUMBER<span style="color:#f500c4">QUEST</span></div>
+  <div class="nav-links">
+    <a href="#how">How To Play</a>
+    <a href="#play">Play</a>
+    <a href="#oop">OOP Design</a>
+    <a href="#code">C++ Code</a>
+    <a href="#uml">UML</a>
+  </div>
+</nav>
+
+<!-- ── HERO ───────────────────────────────────────────────── -->
+<section class="hero">
+  <p class="hero-tag">LLT-1 · Application Development Using Design Concepts</p>
+  <h1 class="pulse">CRACK THE CODE<br><span>NUMBER QUEST</span></h1>
+  <p>A fully object-oriented number guessing game built in C++ — featuring inheritance, encapsulation, abstraction, and polymorphism. Three difficulty modes. One target number. Can you find it?</p>
+  <div class="hero-btns">
+    <a href="#play" class="btn btn-primary">▶ PLAY NOW</a>
+    <a href="#code" class="btn btn-outline">VIEW C++ CODE</a>
+  </div>
+</section>
+
+<!-- ── HOW TO PLAY ─────────────────────────────────────────── -->
+<section id="how">
+  <div class="container">
+    <p class="section-title">HOW TO PLAY</p>
+    <p class="section-sub">Simple rules, serious strategy</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Enter Name</h3>
+        <p>Type your player name to personalise your session and scoreboard entry.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Pick Difficulty</h3>
+        <p>Easy, Medium, or Hard — each changes the range and number of attempts.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Guess & Get Hints</h3>
+        <p>Type a number. Receive a hot/cold or high/low hint based on your mode.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>Score Big</h3>
+        <p>Fewer guesses = bigger score. Use hints wisely and beat the leaderboard!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── DIFFICULTY ─────────────────────────────────────────── -->
+<section id="difficulty" style="padding-top:0;">
+  <div class="container">
+    <p class="section-title">DIFFICULTY MODES</p>
+    <p class="section-sub">Inherited from one base class</p>
+    <div class="diff-grid">
+      <div class="diff-card easy">
+        <span class="diff-badge">EASY</span>
+        <h3>Rookie Mode</h3>
+        <div class="diff-stats">
+          <span class="stat">Range 1–50</span>
+          <span class="stat">10 Attempts</span>
+        </div>
+        <p>Warm/hot/cold distance hints guide you gently. Perfect for learning the ropes. Class: <strong>EasyGame</strong> extends <em>Game</em>.</p>
+      </div>
+      <div class="diff-card medium">
+        <span class="diff-badge">MEDIUM</span>
+        <h3>Challenger Mode</h3>
+        <div class="diff-stats">
+          <span class="stat">Range 1–100</span>
+          <span class="stat">8 Attempts</span>
+        </div>
+        <p>Only told higher or lower. Binary search strategy recommended. Class: <strong>MediumGame</strong> extends <em>Game</em>.</p>
+      </div>
+      <div class="diff-card hard">
+        <span class="diff-badge">HARD</span>
+        <h3>Nightmare Mode</h3>
+        <div class="diff-stats">
+          <span class="stat">Range 1–200</span>
+          <span class="stat">6 Attempts</span>
+        </div>
+        <p>Direction + odd/even clue only. Brutal efficiency required. Class: <strong>HardGame</strong> extends <em>Game</em>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PLAY ───────────────────────────────────────────────── -->
+<section id="play">
+  <div class="container">
+    <p class="section-title">PLAY THE GAME</p>
+    <p class="section-sub">Interactive JavaScript demo — mirrors the C++ logic</p>
+
+    <div class="game-box">
+      <div class="game-topbar">
+        <span class="game-topbar-title">NUMBERQUEST v1.0</span>
+        <span id="attempts-left">ATTEMPTS: —</span>
+      </div>
+      <div class="game-body">
+
+        <!-- Setup -->
+        <div id="setup-panel">
+          <div class="setup-group">
+            <label>Your Name</label>
+            <input type="text" id="player-name" placeholder="Enter name…" maxlength="20"/>
+          </div>
+          <div class="setup-group">
+            <label>Difficulty</label>
+            <select id="difficulty-sel">
+              <option value="easy">Easy — 1 to 50 — 10 tries</option>
+              <option value="medium" selected>Medium — 1 to 100 — 8 tries</option>
+              <option value="hard">Hard — 1 to 200 — 6 tries</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-top:.5rem;" onclick="startGame()">START GAME</button>
+        </div>
+
+        <!-- Game play area (hidden until start) -->
+        <div id="play-panel" style="display:none;">
+          <div id="score-display">SCORE: <span id="score-val">0</span></div>
+          <div class="pips" id="pips"></div>
+          <div id="feedback"></div>
+          <div class="guess-row">
+            <input type="number" id="guess-input" placeholder="Your guess…" min="1"/>
+            <button class="btn-guess" id="guess-btn" onclick="makeGuess()">GUESS</button>
+          </div>
+          <div class="history-title">Guess History</div>
+          <div id="history-log"><span style="color:#3a3a6a;">— no guesses yet —</span></div>
+          <button class="btn btn-outline" style="width:100%;margin-top:1.5rem;font-size:.5rem;" onclick="resetGame()">↺ NEW GAME</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── OOP CONCEPTS ───────────────────────────────────────── -->
+<section id="oop" style="background:#07070f;">
+  <div class="container">
+    <p class="section-title">OOP DESIGN CONCEPTS</p>
+    <p class="section-sub">Every pillar of Object-Oriented Programming applied</p>
+    <div class="oop-grid">
+      <div class="oop-card">
+        <span class="oop-icon">🧱</span>
+        <h3>ABSTRACTION</h3>
+        <p>The <code>Game</code> class is an abstract base class with pure virtual functions <code>getDifficultyName()</code> and <code>getHint()</code>. It defines what every game mode must do without specifying how.</p>
+      </div>
+      <div class="oop-card">
+        <span class="oop-icon">🔒</span>
+        <h3>ENCAPSULATION</h3>
+        <p>All core data — <code>secretNumber</code>, <code>attempts</code>, <code>score</code> — are <code>private</code> / <code>protected</code>. External access is only through controlled getter methods, preventing data corruption.</p>
+      </div>
+      <div class="oop-card">
+        <span class="oop-icon">🧬</span>
+        <h3>INHERITANCE</h3>
+        <p><code>EasyGame</code>, <code>MediumGame</code>, and <code>HardGame</code> all inherit from <code>Game</code> using <code>public</code> inheritance. They reuse the core <code>play()</code> loop and only override what's different.</p>
+      </div>
+      <div class="oop-card">
+        <span class="oop-icon">🎭</span>
+        <h3>POLYMORPHISM</h3>
+        <p>A single <code>Game*</code> pointer holds any difficulty object at runtime. Virtual dispatch calls the correct <code>getHint()</code> automatically — no if/else needed in main().</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── C++ CODE VIEWER ─────────────────────────────────────── -->
+<section id="code">
+  <div class="container">
+    <p class="section-title">C++ SOURCE CODE</p>
+    <p class="section-sub">Full annotated implementation — copy and compile with g++</p>
+
+    <div class="code-header">
+      <div class="code-dots">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <span class="code-filename">NumberGuessingGame.cpp</span>
+      <button onclick="copyCode()" style="font-family:var(--font-ui);font-size:.8rem;font-weight:700;letter-spacing:1px;background:transparent;border:1px solid var(--border);color:var(--muted);padding:.3rem .8rem;border-radius:3px;cursor:pointer;" id="copy-btn">COPY</button>
+    </div>
+    <pre class="code-block" id="code-block">
+<span class="cm">// ── Abstract Base Class ─────────────────────────────────────</span>
+<span class="kw">class</span> <span class="cl">Game</span> {
+<span class="kw">protected</span>:
+    <span class="kw">int</span>    secretNumber, attempts, maxAttempts;
+    <span class="kw">int</span>    minRange, maxRange, score;
+    string playerName;
+
+<span class="kw">public</span>:
+    <span class="fn">Game</span>(string name, <span class="kw">int</span> minR, <span class="kw">int</span> maxR, <span class="kw">int</span> maxAtt) { ... }
+
+    <span class="cm">// Pure virtual — must be overridden by subclasses</span>
+    <span class="kw">virtual</span> string <span class="fn">getDifficultyName</span>() <span class="kw">const</span> <span class="op">= 0</span>;
+    <span class="kw">virtual</span> string <span class="fn">getHint</span>(<span class="kw">int</span> guess)   <span class="kw">const</span> <span class="op">= 0</span>;
+
+    <span class="cm">// Encapsulated getters</span>
+    <span class="kw">int</span>    <span class="fn">getScore</span>()    <span class="kw">const</span> { <span class="kw">return</span> score; }
+    string <span class="fn">getPlayerName</span>() <span class="kw">const</span> { <span class="kw">return</span> playerName; }
+
+    <span class="kw">virtual void</span> <span class="fn">play</span>() { <span class="cm">/* core game loop */</span> }
+};
+
+<span class="cm">// ── Derived: Easy (Inheritance + Polymorphism) ──────────────</span>
+<span class="kw">class</span> <span class="cl">EasyGame</span> : <span class="kw">public</span> <span class="cl">Game</span> {
+<span class="kw">public</span>:
+    <span class="fn">EasyGame</span>(string name) : <span class="cl">Game</span>(name, <span class="num">1</span>, <span class="num">50</span>, <span class="num">10</span>) {}
+
+    string <span class="fn">getDifficultyName</span>() <span class="kw">const override</span> {
+        <span class="kw">return</span> <span class="str">"EASY (1-50, 10 tries)"</span>;
+    }
+    string <span class="fn">getHint</span>(<span class="kw">int</span> guess) <span class="kw">const override</span> {
+        <span class="kw">int</span> diff <span class="op">=</span> abs(guess <span class="op">-</span> secretNumber);
+        <span class="kw">if</span> (diff <span class="op">&lt;=</span> <span class="num">3</span>)  <span class="kw">return</span> <span class="str">"🔥 Scorching HOT!"</span>;
+        <span class="kw">if</span> (diff <span class="op">&lt;=</span> <span class="num">8</span>)  <span class="kw">return</span> <span class="str">"♨ WARM!"</span>;
+        <span class="kw">if</span> (diff <span class="op">&lt;=</span> <span class="num">15</span>) <span class="kw">return</span> <span class="str">"❄ Cold."</span>;
+        <span class="kw">return</span> <span class="str">"🧊 Freezing!"</span>;
+    }
+};
+
+<span class="cm">// ── Derived: Medium ─────────────────────────────────────────</span>
+<span class="kw">class</span> <span class="cl">MediumGame</span> : <span class="kw">public</span> <span class="cl">Game</span> {
+<span class="kw">public</span>:
+    <span class="fn">MediumGame</span>(string name) : <span class="cl">Game</span>(name, <span class="num">1</span>, <span class="num">100</span>, <span class="num">8</span>) {}
+    string <span class="fn">getHint</span>(<span class="kw">int</span> guess) <span class="kw">const override</span> {
+        <span class="kw">return</span> (guess <span class="op">&lt;</span> secretNumber)
+            ? <span class="str">"↑ Too LOW!"</span> : <span class="str">"↓ Too HIGH!"</span>;
+    }
+};
+
+<span class="cm">// ── Derived: Hard ───────────────────────────────────────────</span>
+<span class="kw">class</span> <span class="cl">HardGame</span> : <span class="kw">public</span> <span class="cl">Game</span> {
+<span class="kw">public</span>:
+    <span class="fn">HardGame</span>(string name) : <span class="cl">Game</span>(name, <span class="num">1</span>, <span class="num">200</span>, <span class="num">6</span>) {}
+    string <span class="fn">getHint</span>(<span class="kw">int</span> guess) <span class="kw">const override</span> {
+        string dir    <span class="op">=</span> (guess <span class="op">&lt;</span> secretNumber) ? <span class="str">"↑ Higher"</span> : <span class="str">"↓ Lower"</span>;
+        string parity <span class="op">=</span> (secretNumber <span class="op">%</span> <span class="num">2</span> <span class="op">==</span> <span class="num">0</span>) ? <span class="str">"even"</span> : <span class="str">"odd"</span>;
+        <span class="kw">return</span> dir <span class="op">+</span> <span class="str">". Answer is "</span> <span class="op">+</span> parity;
+    }
+};
+
+<span class="cm">// ── Scoreboard Class (Encapsulation) ────────────────────────</span>
+<span class="kw">class</span> <span class="cl">Scoreboard</span> {
+<span class="kw">private</span>:
+    string names[<span class="num">10</span>]; <span class="kw">int</span> scores[<span class="num">10</span>]; <span class="kw">int</span> count;
+<span class="kw">public</span>:
+    <span class="fn">Scoreboard</span>() : count(<span class="num">0</span>) {}
+    <span class="kw">void</span> <span class="fn">addEntry</span>(<span class="kw">const</span> string<span class="op">&</span> name, <span class="kw">int</span> score);
+    <span class="kw">void</span> <span class="fn">display</span>() <span class="kw">const</span>;
+};
+
+<span class="cm">// ── Main: Polymorphism in action ─────────────────────────────</span>
+<span class="kw">int</span> <span class="fn">main</span>() {
+    <span class="cl">Game</span><span class="op">*</span> g <span class="op">=</span> <span class="kw">nullptr</span>;
+    <span class="kw">switch</span> (choice) {
+        <span class="kw">case</span> <span class="num">1</span>: g <span class="op">=</span> <span class="kw">new</span> <span class="cl">EasyGame</span>(name);   <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="num">2</span>: g <span class="op">=</span> <span class="kw">new</span> <span class="cl">MediumGame</span>(name); <span class="kw">break</span>;
+        <span class="kw">case</span> <span class="num">3</span>: g <span class="op">=</span> <span class="kw">new</span> <span class="cl">HardGame</span>(name);   <span class="kw">break</span>;
+    }
+    g<span class="op">-&gt;</span><span class="fn">play</span>();   <span class="cm">// polymorphic dispatch</span>
+    <span class="kw">delete</span> g;
+}
+</pre>
+  </div>
+</section>
+
+<!-- ── UML DIAGRAM ─────────────────────────────────────────── -->
+<section id="uml">
+  <div class="container">
+    <p class="section-title">UML CLASS DIAGRAM</p>
+    <p class="section-sub">Inheritance hierarchy of the C++ implementation</p>
+
+    <div class="uml-container">
+      <div class="uml-diagram">
+
+        <!-- Base class -->
+        <div class="uml-class" style="width:280px;">
+          <div class="uml-class-name">«abstract» Game</div>
+          <div class="uml-section" style="color:#6a6aaa;font-size:.75rem;">
+            # secretNumber : int<br>
+            # attempts : int<br>
+            # maxAttempts : int<br>
+            # minRange, maxRange : int<br>
+            # score : int<br>
+            # playerName : string
+          </div>
+          <div class="uml-section" style="font-size:.75rem;">
+            + Game(name, min, max, att)<br>
+            + getScore() : int<br>
+            + getPlayerName() : string<br>
+            + play() : void<br>
+            + displayScoreSummary() : void<br>
+            <span style="color:var(--accent2)">«pure virtual»</span><br>
+            + getDifficultyName() : string<br>
+            + getHint(int) : string
+          </div>
+        </div>
+
+        <!-- Connector -->
+        <div class="uml-connector">
+          <span class="arrow">▲</span>
+          <span class="label">INHERITANCE (public)</span>
+        </div>
+
+        <!-- Derived row -->
+        <div class="uml-derived-row">
+
+          <div class="uml-derived-col">
+            <div class="uml-class derived" style="width:200px;">
+              <div class="uml-class-name">EasyGame</div>
+              <div class="uml-section" style="font-size:.73rem;color:#6a6aaa;">
+                Range: 1–50<br>Max Attempts: 10
+              </div>
+              <div class="uml-section" style="font-size:.73rem;">
+                + EasyGame(name)<br>
+                + getDifficultyName()<br>
+                + getHint(int) ← hot/cold
+              </div>
+            </div>
+          </div>
+
+          <div class="uml-derived-col">
+            <div class="uml-class derived" style="width:200px;">
+              <div class="uml-class-name">MediumGame</div>
+              <div class="uml-section" style="font-size:.73rem;color:#6a6aaa;">
+                Range: 1–100<br>Max Attempts: 8
+              </div>
+              <div class="uml-section" style="font-size:.73rem;">
+                + MediumGame(name)<br>
+                + getDifficultyName()<br>
+                + getHint(int) ← hi/lo
+              </div>
+            </div>
+          </div>
+
+          <div class="uml-derived-col">
+            <div class="uml-class derived" style="width:200px;">
+              <div class="uml-class-name">HardGame</div>
+              <div class="uml-section" style="font-size:.73rem;color:#6a6aaa;">
+                Range: 1–200<br>Max Attempts: 6
+              </div>
+              <div class="uml-section" style="font-size:.73rem;">
+                + HardGame(name)<br>
+                + getDifficultyName()<br>
+                + getHint(int) ← parity
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Scoreboard -->
+        <div style="margin-top:2.5rem;">
+          <div class="uml-class util" style="width:260px;">
+            <div class="uml-class-name">Scoreboard</div>
+            <div class="uml-section" style="font-size:.73rem;color:#6a6aaa;">
+              - names[10] : string<br>
+              - scores[10] : int<br>
+              - count : int
+            </div>
+            <div class="uml-section" style="font-size:.73rem;">
+              + Scoreboard()<br>
+              + addEntry(name, score) : void<br>
+              + display() : void
+            </div>
+          </div>
+        </div>
+
+        <div style="text-align:center;margin-top:1.5rem;font-size:.78rem;color:var(--muted);font-family:monospace;">
+          ▲ = Inheritance &nbsp;|&nbsp; # = protected &nbsp;|&nbsp; - = private &nbsp;|&nbsp; + = public
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">NUMBERQUEST</div>
+  <p>
+    Built for <span>LLT-1 · Application Development Using Design Concepts</span><br>
+    C++ · OOP · Inheritance · Encapsulation · Abstraction · Polymorphism<br>
+    <span style="color:var(--muted);font-size:.85rem;">© 2025 — Compiled with g++ -std=c++17</span>
+  </p>
+</footer>
+
+<!-- ── GAME LOGIC (JS mirrors C++ logic) ─────────────────── -->
+<script>
+const CONFIGS = {
+  easy:   { min:1, max:50,  maxAtt:10 },
+  medium: { min:1, max:100, maxAtt:8  },
+  hard:   { min:1, max:200, maxAtt:6  },
+};
+
+let state = null;
+
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getHint(diff, guess, secret) {
+  if (diff === 'easy') {
+    const d = Math.abs(guess - secret);
+    if (d <= 3)  return ['🔥 Scorching HOT! Very close!', 'fb-hot'];
+    if (d <= 8)  return ['♨ WARM! Getting closer.', 'fb-warm'];
+    if (d <= 15) return ['❄ Cold. A bit far.', 'fb-cold'];
+    return ['🧊 Freezing! Way off.', 'fb-cold'];
+  }
+  if (diff === 'medium') {
+    return guess < secret
+      ? ['↑ Too LOW! Guess higher.', 'fb-low']
+      : ['↓ Too HIGH! Guess lower.', 'fb-high'];
+  }
+  // hard
+  const dir    = guess < secret ? '↑ Higher' : '↓ Lower';
+  const parity = secret % 2 === 0 ? 'even' : 'odd';
+  return [`${dir}. Hint: the answer is ${parity}.`, 'fb-warm'];
+}
+
+function renderPips() {
+  const container = document.getElementById('pips');
+  container.innerHTML = '';
+  for (let i = 0; i < state.maxAtt; i++) {
+    const pip = document.createElement('div');
+    pip.className = 'pip';
+    if (i < state.attempts) {
+      pip.classList.add(state.won ? 'win' : (state.over ? 'lose' : 'used'));
+    }
+    container.appendChild(pip);
+  }
+}
+
+function startGame() {
+  const name = document.getElementById('player-name').value.trim() || 'Player';
+  const diff = document.getElementById('difficulty-sel').value;
+  const cfg  = CONFIGS[diff];
+
+  state = {
+    name,
+    diff,
+    secret: randInt(cfg.min, cfg.max),
+    min: cfg.min,
+    max: cfg.max,
+    maxAtt: cfg.maxAtt,
+    attempts: 0,
+    over: false,
+    won: false,
+  };
+
+  document.getElementById('setup-panel').style.display = 'none';
+  document.getElementById('play-panel').style.display  = 'block';
+  document.getElementById('guess-input').min = cfg.min;
+  document.getElementById('guess-input').max = cfg.max;
+  document.getElementById('guess-input').placeholder = `${cfg.min}–${cfg.max}`;
+  document.getElementById('score-display').style.display = 'none';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className   = '';
+  document.getElementById('history-log').innerHTML = '<span style="color:#3a3a6a;">— no guesses yet —</span>';
+  document.getElementById('guess-btn').disabled = false;
+  updateAttemptsDisplay();
+  renderPips();
+  document.getElementById('guess-input').focus();
+}
+
+function updateAttemptsDisplay() {
+  document.getElementById('attempts-left').textContent =
+    `ATTEMPTS: ${state.maxAtt - state.attempts} LEFT`;
+}
+
+function makeGuess() {
+  if (!state || state.over) return;
+  const input = document.getElementById('guess-input');
+  const guess = parseInt(input.value);
+  if (isNaN(guess) || guess < state.min || guess > state.max) {
+    input.classList.add('animate-shake');
+    setTimeout(() => input.classList.remove('animate-shake'), 400);
+    setFeedback(`Enter a number between ${state.min} and ${state.max}.`, 'fb-cold');
+    return;
+  }
+
+  state.attempts++;
+  input.value = '';
+  updateAttemptsDisplay();
+
+  const fb = document.getElementById('feedback');
+
+  if (guess === state.secret) {
+    state.over = true;
+    state.won  = true;
+    const score = ((state.maxAtt - state.attempts + 1) * 10) + Math.floor((state.max - state.min) / 10);
+    setFeedback(`✔ CORRECT! The number was ${state.secret}. Score: ${score} pts`, 'fb-win');
+    document.getElementById('score-display').style.display = 'block';
+    document.getElementById('score-val').textContent = score;
+    document.getElementById('guess-btn').disabled = true;
+    addLog(guess, '✔ CORRECT!', 'exact');
+    renderPips();
+    return;
+  }
+
+  addLog(guess, guess < state.secret ? '↑ Low' : '↓ High', guess < state.secret ? 'right' : 'left');
+
+  if (state.attempts >= state.maxAtt) {
+    state.over = true;
+    setFeedback(`✗ Out of attempts! The number was ${state.secret}.`, 'fb-lose');
+    document.getElementById('guess-btn').disabled = true;
+    renderPips();
+    return;
+  }
+
+  const [msg, cls] = getHint(state.diff, guess, state.secret);
+  setFeedback(msg, cls);
+  renderPips();
+}
+
+function setFeedback(msg, cls) {
+  const fb = document.getElementById('feedback');
+  fb.textContent = msg;
+  fb.className = cls + ' animate-pop';
+}
+
+function addLog(guess, label, cls) {
+  const log = document.getElementById('history-log');
+  if (log.querySelector('span')) log.innerHTML = '';
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${cls}`;
+  entry.innerHTML = `<span>Guess #${state.attempts}: ${guess}</span><span>${label}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function resetGame() {
+  state = null;
+  document.getElementById('setup-panel').style.display = 'block';
+  document.getElementById('play-panel').style.display  = 'none';
+  document.getElementById('attempts-left').textContent = 'ATTEMPTS: —';
+}
+
+// Enter key for guess
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && state && !state.over) makeGuess();
+});
+
+// Copy code button
+function copyCode() {
+  const raw = `#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <string>
+#include <limits>
+using namespace std;
+
+class Game {
+protected:
+    int  secretNumber, attempts, maxAttempts;
+    int  minRange, maxRange, score;
+    string playerName;
+public:
+    Game(string name, int minR, int maxR, int maxAtt)
+        : playerName(name), minRange(minR), maxRange(maxR),
+          maxAttempts(maxAtt), attempts(0), score(0) {
+        secretNumber = (rand() % (maxR - minR + 1)) + minR;
+    }
+    virtual ~Game() {}
+    virtual string getDifficultyName() const = 0;
+    virtual string getHint(int guess)   const = 0;
+    int    getScore()      const { return score; }
+    string getPlayerName() const { return playerName; }
+    virtual void play();
+    void displayScoreSummary() const;
+};
+
+class EasyGame : public Game {
+public:
+    EasyGame(string name) : Game(name, 1, 50, 10) {}
+    string getDifficultyName() const override { return "EASY (1-50, 10 tries)"; }
+    string getHint(int guess) const override {
+        int diff = abs(guess - secretNumber);
+        if (diff <= 3)  return "Scorching HOT!";
+        if (diff <= 8)  return "WARM!";
+        if (diff <= 15) return "Cold.";
+        return "Freezing!";
+    }
+};
+
+class MediumGame : public Game {
+public:
+    MediumGame(string name) : Game(name, 1, 100, 8) {}
+    string getDifficultyName() const override { return "MEDIUM (1-100, 8 tries)"; }
+    string getHint(int guess) const override {
+        return (guess < secretNumber) ? "Too LOW!" : "Too HIGH!";
+    }
+};
+
+class HardGame : public Game {
+public:
+    HardGame(string name) : Game(name, 1, 200, 6) {}
+    string getDifficultyName() const override { return "HARD (1-200, 6 tries)"; }
+    string getHint(int guess) const override {
+        string dir = (guess < secretNumber) ? "Higher" : "Lower";
+        string p   = (secretNumber % 2 == 0) ? "even" : "odd";
+        return dir + ". Answer is " + p;
+    }
+};
+
+int main() {
+    srand((unsigned)time(nullptr));
+    string name; int choice;
+    cout << "Name: "; cin >> name;
+    cout << "1.Easy 2.Medium 3.Hard: "; cin >> choice;
+    Game* g = nullptr;
+    switch(choice) {
+        case 1: g = new EasyGame(name);   break;
+        case 2: g = new MediumGame(name); break;
+        case 3: g = new HardGame(name);   break;
+        default: g = new MediumGame(name);
+    }
+    g->play();
+    delete g;
+    return 0;
+}`;
+  navigator.clipboard.writeText(raw).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'COPIED!';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    setTimeout(() => {
+      btn.textContent = 'COPY';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>
